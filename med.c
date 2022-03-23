@@ -1,6 +1,7 @@
 #ifdef USE_C_STDLIB
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #endif
 #include <ctype.h>
 
@@ -44,6 +45,7 @@ static int stack[256] = {0}, sptr = 0;
 #define med_printi(x) printf("%d", x)
 #define med_printf(...) printf(__VA_ARGS__)
 #define med_streq !strcmp
+#define med_exit exit
 #endif
 
 #define ERROR                                                                  \
@@ -52,29 +54,6 @@ static int stack[256] = {0}, sptr = 0;
     med_putchar('\n');                                                         \
     state = COMMAND;                                                           \
   }
-
-/************** Commands ****************/
-
-void append() { state = TEXT; }
-
-void display() {
-  int i;
-  for (i = 0; i < sizeof(lines) / sizeof(lines[0]); i++) {
-    if (lines[i] != -1)
-      med_printf("%02d %s\n", i, &buffer[lines[i]]);
-  }
-}
-
-void print_stack() {
-  int i;
-  med_putchar('[');
-  for (i = 0; i < sptr; i++) {
-    med_printi(stack[i]);
-    if (i != sptr - 1)
-      med_puts(", ");
-  }
-  med_puts("]\n");
-}
 
 void push(int n) {
   if (sptr >= sizeof(stack) / sizeof(stack[0])) {
@@ -89,8 +68,66 @@ int pop() {
     return stack[--sptr];
   else {
     ERROR;
+    med_exit(1);
   }
 }
+
+/*********** Commands ***********/
+
+void append() { state = TEXT; }
+
+void display() {
+  int i;
+  for (i = 0; i < sizeof(lines) / sizeof(lines[0]); i++) {
+    if (lines[i] != -1)
+      med_printf("%4d  %s\n", i, &buffer[lines[i]]);
+  }
+}
+
+void print_stack() {
+  int i;
+  med_putchar('[');
+  for (i = 0; i < sptr; i++) {
+    med_printi(stack[i]);
+    if (i != sptr - 1)
+      med_puts(", ");
+  }
+  med_puts("]\n");
+}
+
+void swap() {
+  int a, b, t;
+  if(sptr < 2) {
+    ERROR;
+    return;
+  }
+  a = pop();
+  b = pop();
+  t = lines[a];
+  lines[a] = lines[b];
+  lines[b] = t;
+}
+
+void delete()
+{
+  int l, i;
+  if(sptr < 1) {
+    ERROR;
+    return;
+  }
+  l = pop();
+  if(l < 0 || l >= li || lines[li] == -1) {
+    ERROR;
+    return;
+  }
+  for(i = l; i < li; i++)
+    lines[i] = lines[i + 1];
+  lines[li--] = -1;
+}
+
+/*********** End of commands ***********/
+
+
 
 /*[[[cog
 import cog
@@ -98,7 +135,9 @@ import cog
 commands = {
   "a": "append",
   "%": "display",
-  "stack": "print_stack"
+  "stack": "print_stack",
+  "swp": "swap",
+  "d": "delete"
 }
 
 cog.outl("int exec_cmd(char *cmd) {");
@@ -125,6 +164,14 @@ int exec_cmd(char *cmd) {
   }
   if(med_streq(cmd, "stack")) {
     print_stack();
+    return 1;
+  }
+  if(med_streq(cmd, "swp")) {
+    swap();
+    return 1;
+  }
+  if(med_streq(cmd, "d")) {
+    delete();
     return 1;
   }
   ERROR;
@@ -169,27 +216,26 @@ int main(int argc, char *argv[]) {
 
     switch (state) {
     case COMMAND:
-      if (c != '\n' && c != '\r') {
+      if (!isspace(c)) {
         tib[tptr] = c;
         INC_TPTR;
-      }
-
-      if (c == '\n') {
+      } else {
         tib[tptr] = 0;
         INC_TPTR;
         if (tptr > 1)
           parse();
         tptr = 0;
+        if(c == '\n')
+          print_stack();
       }
       break;
 
     case TEXT:
-      printf("c='%c'\n", c);
       if (c == '\n') {
         buffer[bi] = 0;
         INC_BI
-        printf("line = \"%s\"\n", &buffer[lines[li]]);
         if(med_streq(&buffer[lines[li]], ".")) {
+          lines[li] = bi;  /* we skip this line containing only a dot */
           state = COMMAND;
         } else {
           INC_LI
