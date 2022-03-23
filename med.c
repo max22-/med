@@ -1,7 +1,7 @@
 #ifdef USE_C_STDLIB
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #endif
 #include <ctype.h>
 
@@ -97,7 +97,7 @@ void print_stack() {
 
 void swap() {
   int a, b, t;
-  if(sptr < 2) {
+  if (sptr < 2) {
     ERROR;
     return;
   }
@@ -108,26 +108,23 @@ void swap() {
   lines[b] = t;
 }
 
-void delete()
-{
+void delete () {
   int l, i;
-  if(sptr < 1) {
+  if (sptr < 1) {
     ERROR;
     return;
   }
   l = pop();
-  if(l < 0 || l >= li || lines[li] == -1) {
+  if (l < 0 || l >= li || lines[li] == -1) {
     ERROR;
     return;
   }
-  for(i = l; i < li; i++)
+  for (i = l; i < li; i++)
     lines[i] = lines[i + 1];
   lines[li--] = -1;
 }
 
 /*********** End of commands ***********/
-
-
 
 /*[[[cog
 import cog
@@ -143,7 +140,7 @@ commands = {
 cog.outl("int exec_cmd(char *cmd) {");
 for (k, v) in commands.items():
   cog.out(f"""
-  if(med_streq(cmd, "{k}")) {{
+  if (med_streq(cmd, "{k}")) {{
     {v}();
     return 1;
   }}""", trimblanklines=True)
@@ -154,24 +151,24 @@ cog.out("""
 
 ]]]*/
 int exec_cmd(char *cmd) {
-  if(med_streq(cmd, "a")) {
+  if (med_streq(cmd, "a")) {
     append();
     return 1;
   }
-  if(med_streq(cmd, "%")) {
+  if (med_streq(cmd, "%")) {
     display();
     return 1;
   }
-  if(med_streq(cmd, "stack")) {
+  if (med_streq(cmd, "stack")) {
     print_stack();
     return 1;
   }
-  if(med_streq(cmd, "swp")) {
+  if (med_streq(cmd, "swp")) {
     swap();
     return 1;
   }
-  if(med_streq(cmd, "d")) {
-    delete();
+  if (med_streq(cmd, "d")) {
+    delete ();
     return 1;
   }
   ERROR;
@@ -225,7 +222,7 @@ int main(int argc, char *argv[]) {
         if (tptr > 1)
           parse();
         tptr = 0;
-        if(c == '\n')
+        if (c == '\n')
           print_stack();
       }
       break;
@@ -234,15 +231,14 @@ int main(int argc, char *argv[]) {
       if (c == '\n') {
         buffer[bi] = 0;
         INC_BI
-        if(med_streq(&buffer[lines[li]], ".")) {
-          lines[li] = bi;  /* we skip this line containing only a dot */
+        if (med_streq(&buffer[lines[li]], ".")) {
+          lines[li] = bi; /* we skip this line containing only a dot */
           state = COMMAND;
         } else {
           INC_LI
           lines[li] = bi;
         }
-      }
-      else
+      } else
         buffer[bi++] = c;
       break;
     }
