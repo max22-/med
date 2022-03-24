@@ -5,6 +5,9 @@
 #endif
 #include <ctype.h>
 
+static char buffer[10240] = {0};
+static char buffer2[10240] = {0};
+static int lines[1024];
 static int bi = 0, bi2 = 0; /* buffer index, buffer2 index */
 
 #define ITEMS(x) (sizeof(x) / sizeof(x[0]))
