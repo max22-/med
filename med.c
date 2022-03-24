@@ -6,32 +6,14 @@
 #include <ctype.h>
 
 static char buffer[1024] = {0};
+static char buffer2[1024] = {0};
 static int lines[256];
-static int bi = 0, li = 0; /* buffer index, line index */
-#define INC_BI                                                                 \
-  {                                                                            \
-    if (bi < sizeof(buffer) - 1)                                               \
-      bi++;                                                                    \
-    else                                                                       \
-      ERROR;                                                                   \
-  }
-#define INC_LI                                                                 \
-  {                                                                            \
-    if (li < sizeof(lines) / sizeof(lines[0]) - 1)                             \
-      li++;                                                                    \
-    else                                                                       \
-      ERROR;                                                                   \
-  }
+static int bi = 0, li = 0, bi2 = 0; /* buffer index, line index, buffer2 index */
+
+#define INC_PTR(dat, ptr) { if (ptr < sizeof(dat) / sizeof(dat[0]) - 1) ptr++; else ERROR; }
 
 static char tib[256] = {0};
 static int tptr;
-#define INC_TPTR                                                               \
-  {                                                                            \
-    if (tptr < sizeof(tib) - 1)                                                \
-      tptr++;                                                                  \
-    else                                                                       \
-      ERROR;                                                                   \
-  }
 
 enum { COMMAND, TEXT } state = COMMAND;
 
@@ -46,6 +28,10 @@ static int stack[256] = {0}, sptr = 0;
 #define med_printf(...) printf(__VA_ARGS__)
 #define med_streq !strcmp
 #define med_exit exit
+#define med_fopen fopen
+#define med_fwrite fwrite
+#define med_fclose fclose
+#define med_strlen strlen
 #endif
 
 #define ERROR                                                                  \
@@ -80,7 +66,7 @@ void display() {
   int i;
   for (i = 0; i < sizeof(lines) / sizeof(lines[0]); i++) {
     if (lines[i] != -1)
-      med_printf("%4d  %s\n", i, &buffer[lines[i]]);
+      med_printf("%3d  %s\n", i, &buffer[lines[i]]);
   }
 }
 
@@ -124,6 +110,42 @@ void delete () {
   lines[li--] = -1;
 }
 
+void pack()
+{
+  int i, j;
+  char c;
+  bi2 = 0;
+  for(i = 0; lines[i] != -1; i++) {
+    for(j = 0; (c = *(&buffer[lines[i]] + j)) != 0; j++) {
+      buffer2[bi2] = c;
+      INC_PTR(buffer2, bi2);
+    }
+    buffer2[bi2] = '\n';
+    INC_PTR(buffer2, bi2);
+  }
+}
+
+void save() {
+  char file_path[256];
+  int fptr = 0;
+  int c;
+  FILE *f;
+  med_puts("path: \n");
+  do {
+    c = med_getchar();
+    if(!isspace(c)) {
+      file_path[fptr] = c;
+      INC_PTR(file_path, fptr);
+    }
+  } while (!isspace(c));
+  pack();
+  f = med_fopen(file_path, "w");
+  if(f != NULL) {
+    med_fwrite(buffer2, med_strlen(buffer2), 1, f);
+    fclose(f);
+  } else ERROR;
+}
+
 /*********** End of commands ***********/
 
 /*[[[cog
@@ -134,7 +156,9 @@ commands = {
   "%": "display",
   "stack": "print_stack",
   "swp": "swap",
-  "d": "delete"
+  "d": "delete",
+  "pack": "pack",
+  "s": "save"
 }
 
 cog.outl("int exec_cmd(char *cmd) {");
@@ -168,7 +192,15 @@ int exec_cmd(char *cmd) {
     return 1;
   }
   if (med_streq(cmd, "d")) {
-    delete ();
+    delete();
+    return 1;
+  }
+  if (med_streq(cmd, "pack")) {
+    pack();
+    return 1;
+  }
+  if (med_streq(cmd, "s")) {
+    save();
     return 1;
   }
   ERROR;
@@ -215,10 +247,10 @@ int main(int argc, char *argv[]) {
     case COMMAND:
       if (!isspace(c)) {
         tib[tptr] = c;
-        INC_TPTR;
+        INC_PTR(tib, tptr);
       } else {
         tib[tptr] = 0;
-        INC_TPTR;
+        INC_PTR(tib, tptr);
         if (tptr > 1)
           parse();
         tptr = 0;
@@ -230,12 +262,12 @@ int main(int argc, char *argv[]) {
     case TEXT:
       if (c == '\n') {
         buffer[bi] = 0;
-        INC_BI
+        INC_PTR(buffer, bi);
         if (med_streq(&buffer[lines[li]], ".")) {
           lines[li] = bi; /* we skip this line containing only a dot */
           state = COMMAND;
         } else {
-          INC_LI
+          INC_PTR(lines, li);
           lines[li] = bi;
         }
       } else
