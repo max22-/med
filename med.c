@@ -41,7 +41,7 @@ static int stack[256] = {0}, sptr = 0;
     state = COMMAND;                                                           \
   }
 
-void push(int n) {
+static void push(int n) {
   if (sptr >= sizeof(stack) / sizeof(stack[0])) {
     ERROR;
     return;
@@ -49,7 +49,7 @@ void push(int n) {
   stack[sptr++] = n;
 }
 
-int pop() {
+static int pop() {
   if (sptr > 0)
     return stack[--sptr];
   else {
@@ -60,9 +60,9 @@ int pop() {
 
 /*********** Commands ***********/
 
-void append() { state = TEXT; }
+static void append() { state = TEXT; }
 
-void display() {
+static void display() {
   int i;
   for (i = 0; i < sizeof(lines) / sizeof(lines[0]); i++) {
     if (lines[i] != -1)
@@ -70,7 +70,7 @@ void display() {
   }
 }
 
-void print_stack() {
+static void print_stack() {
   int i;
   med_putchar('[');
   for (i = 0; i < sptr; i++) {
@@ -81,7 +81,7 @@ void print_stack() {
   med_puts("]\n");
 }
 
-void swap() {
+static void swap() {
   int a, b, t;
   if (sptr < 2) {
     ERROR;
@@ -94,7 +94,7 @@ void swap() {
   lines[b] = t;
 }
 
-void delete () {
+static void delete () {
   int l, i;
   if (sptr < 1) {
     ERROR;
@@ -110,7 +110,7 @@ void delete () {
   lines[li--] = -1;
 }
 
-void pack()
+static void pack()
 {
   int i, j;
   char c;
@@ -125,7 +125,7 @@ void pack()
   }
 }
 
-void save() {
+static void save() {
   char file_path[256];
   int fptr = 0;
   int c;
@@ -208,7 +208,7 @@ int exec_cmd(char *cmd) {
 }
 /*[[[end]]]*/
 
-void parse() {
+static void parse() {
   char c = tib[0];
   int i, number_flag = 1, n = 0;
   if (c == '-' || isdigit(c)) {
