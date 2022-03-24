@@ -5,12 +5,10 @@
 #endif
 #include <ctype.h>
 
-static char buffer[1024] = {0};
-static char buffer2[1024] = {0};
-static int lines[256];
-static int bi = 0, li = 0, bi2 = 0; /* buffer index, line index, buffer2 index */
+static int bi = 0, bi2 = 0; /* buffer index, buffer2 index */
 
-#define INC_PTR(dat, ptr) { if (ptr < sizeof(dat) / sizeof(dat[0]) - 1) ptr++; else ERROR; }
+#define ITEMS(x) (sizeof(x) / sizeof(x[0]))
+#define INC_PTR(dat, ptr) { if (ptr < ITEMS(dat) - 1) ptr++; else ERROR; }
 #define DEC_PTR(ptr) { if (ptr > 0) ptr--; else ERROR; }
 
 static char tib[256] = {0};
@@ -33,6 +31,7 @@ static int stack[256] = {0}, sptr = 0;
 #define med_fwrite fwrite
 #define med_fclose fclose
 #define med_fgetc fgetc
+#define med_quit exit
 #endif
 
 #define ERROR                                                                  \
@@ -65,7 +64,7 @@ static int med_input_token(char *buffer, int size)
 }
 
 static void push(int n) {
-  if (sptr >= sizeof(stack) / sizeof(stack[0])) {
+  if (sptr >= ITEMS(stack)) {
     ERROR;
     return;
   }
@@ -87,7 +86,7 @@ static void append() { state = TEXT; }
 
 static void display() {
   int i;
-  for (i = 0; i < sizeof(lines) / sizeof(lines[0]); i++) {
+  for (i = 0; i < ITEMS(lines); i++) {
     if (lines[i] != -1)
       med_printf("%3d  %s\n", i, &buffer[lines[i]]);
   }
@@ -124,14 +123,13 @@ static void delete () {
     return;
   }
   l = pop();
-  if (l < 0 || l >= li || lines[li] == -1) {
+  if (l < 0 || lines[l] == -1) {
     ERROR;
     return;
   }
-  for (i = l; i < li; i++)
+  for (i = l; i < ITEMS(lines) - 1; i++)
     lines[i] = lines[i + 1];
-  lines[li] = -1;
-  DEC_PTR(li);
+  lines[ITEMS(lines) - 1] = -1;
 }
 
 static void pack()
@@ -147,16 +145,22 @@ static void pack()
     buffer2[bi2] = '\n';
     INC_PTR(buffer2, bi2);
   }
+  if(bi2 > 1) {
+    buffer2[bi2-1] = 0;
+    DEC_PTR(bi2);
+  }
 }
 
 static void unpack()
 {
   int i;
   char c;
+  int li = 0;
   bi = 0;
-  li = 0;
+  for(i = 0; i < sizeof(buffer); i++)
+    buffer[i] = 0;
   lines[0] = 0;
-  for(i = 1; i < sizeof(lines) / sizeof(lines[0]); i++)
+  for(i = 1; i < ITEMS(lines); i++)
     lines[i] = -1;
   for(i = 0; i < bi2; i++) {
     c = buffer2[i];
@@ -207,6 +211,23 @@ static int open() {
   return 1;
 }
 
+void new()
+{
+  int i;
+  bi = 0;
+  bi2 = 0;
+  for(i = 0; i < sizeof(buffer); i++)
+    buffer[i] = 0;
+  lines[0] = 0;
+  for(i = 1; i < ITEMS(lines); i++)
+    lines[i] = -1;
+}
+
+void quit()
+{
+  med_quit(0);
+}
+
 /*********** End of commands ***********/
 
 /*[[[cog
@@ -221,7 +242,10 @@ commands = {
   "pack": "pack",
   "unpack": "unpack",
   "s": "save",
-  "o": "open"
+  "o": "open",
+  "n": "new",
+  "q": "quit"
+  
 }
 
 cog.outl("int exec_cmd(char *cmd) {");
@@ -274,6 +298,14 @@ int exec_cmd(char *cmd) {
     open();
     return 1;
   }
+  if (med_streq(cmd, "n")) {
+    new();
+    return 1;
+  }
+  if (med_streq(cmd, "q")) {
+    quit();
+    return 1;
+  }
   ERROR;
   return 0;
 }
@@ -304,9 +336,10 @@ static void parse() {
 
 int main(int argc, char *argv[]) {
   int i, c, quit = 0;
+  int li = 0;
 
   lines[0] = 0; /* we create a first line starting a 0 in the buffer */
-  for (i = 1; i < sizeof(lines) / sizeof(lines[0]); i++)
+  for (i = 1; i < ITEMS(lines); i++)
     lines[i] = -1;
 
   while (!quit) {
