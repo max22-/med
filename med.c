@@ -271,7 +271,7 @@ int main(int argc, char *argv[]) {
           INC_PTR(lines, li);
           lines[li] = bi;
         }
-      } else
+      } else if (c != '\r')
         buffer[bi++] = c;
       break;
     }
