@@ -11,6 +11,7 @@ static int lines[256];
 static int bi = 0, li = 0, bi2 = 0; /* buffer index, line index, buffer2 index */
 
 #define INC_PTR(dat, ptr) { if (ptr < sizeof(dat) / sizeof(dat[0]) - 1) ptr++; else ERROR; }
+#define DEC_PTR(ptr) { if (ptr > 0) ptr--; else ERROR; }
 
 static char tib[256] = {0};
 static int tptr;
@@ -107,7 +108,8 @@ static void delete () {
   }
   for (i = l; i < li; i++)
     lines[i] = lines[i + 1];
-  lines[li--] = -1;
+  lines[li] = -1;
+  DEC_PTR(li);
 }
 
 static void pack()
