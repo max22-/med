@@ -32,6 +32,7 @@ static int stack[256] = {0}, sptr = 0;
 #define med_fopen fopen
 #define med_fwrite fwrite
 #define med_fclose fclose
+#define med_fgetc fgetc
 #endif
 
 #define ERROR                                                                  \
@@ -40,6 +41,28 @@ static int stack[256] = {0}, sptr = 0;
     med_putchar('\n');                                                         \
     state = COMMAND;                                                           \
   }
+
+static int med_input_token(char *buffer, int size)
+{
+  int ptr = 0;
+  int c;
+  do {
+    c = med_getchar();
+    if(c == med_EOF)
+      exit(0);
+    if(!isspace(c)) {
+      buffer[ptr] = c;
+      if(ptr < size - 1)
+        ptr++;
+      else {
+        ERROR;
+        return 0;
+      }
+    }
+  } while (!isspace(c));
+  buffer[ptr] = 0;
+  return 1;
+}
 
 static void push(int n) {
   if (sptr >= sizeof(stack) / sizeof(stack[0])) {
@@ -126,25 +149,62 @@ static void pack()
   }
 }
 
+static void unpack()
+{
+  int i;
+  char c;
+  bi = 0;
+  li = 0;
+  lines[0] = 0;
+  for(i = 1; i < sizeof(lines) / sizeof(lines[0]); i++)
+    lines[i] = -1;
+  for(i = 0; i < bi2; i++) {
+    c = buffer2[i];
+    if(c == '\n') {
+      buffer[bi] = 0;
+      INC_PTR(buffer, bi);
+      INC_PTR(lines, li);
+      lines[li] = bi;
+    } else if (c != '\r')
+      buffer[bi++] = c;
+  }
+}
+
 static void save() {
   char file_path[256];
-  int fptr = 0;
-  int c;
   FILE *f;
-  med_puts("path: \n");
-  do {
-    c = med_getchar();
-    if(!isspace(c)) {
-      file_path[fptr] = c;
-      INC_PTR(file_path, fptr);
-    }
-  } while (!isspace(c));
+  med_puts("path: ");
+  med_input_token(file_path, sizeof(file_path));
   pack();
   f = med_fopen(file_path, "w");
   if(f != NULL) {
     med_fwrite(buffer2, bi2, 1, f);
     fclose(f);
   } else ERROR;
+}
+
+static int open() {
+  char file_path[256];
+  FILE *f;
+  int c;
+  bi2 = 0;
+  med_puts("path: ");
+  med_input_token(file_path, sizeof(file_path));
+  f = med_fopen(file_path, "r");
+  if(f != NULL) {
+    do {
+      c = med_fgetc(f);
+      if(c != med_EOF) {
+        buffer2[bi2] = c;
+        INC_PTR(buffer2, bi2);
+      }
+    } while(c != med_EOF);
+  } else {
+    ERROR;
+    return 0;
+  }
+  unpack();
+  return 1;
 }
 
 /*********** End of commands ***********/
@@ -159,7 +219,9 @@ commands = {
   "swp": "swap",
   "d": "delete",
   "pack": "pack",
-  "s": "save"
+  "unpack": "unpack",
+  "s": "save",
+  "o": "open"
 }
 
 cog.outl("int exec_cmd(char *cmd) {");
@@ -200,8 +262,16 @@ int exec_cmd(char *cmd) {
     pack();
     return 1;
   }
+  if (med_streq(cmd, "unpack")) {
+    unpack();
+    return 1;
+  }
   if (med_streq(cmd, "s")) {
     save();
+    return 1;
+  }
+  if (med_streq(cmd, "o")) {
+    open();
     return 1;
   }
   ERROR;
