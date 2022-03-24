@@ -32,7 +32,6 @@ static int stack[256] = {0}, sptr = 0;
 #define med_fopen fopen
 #define med_fwrite fwrite
 #define med_fclose fclose
-#define med_strlen strlen
 #endif
 
 #define ERROR                                                                  \
@@ -143,7 +142,7 @@ static void save() {
   pack();
   f = med_fopen(file_path, "w");
   if(f != NULL) {
-    med_fwrite(buffer2, med_strlen(buffer2), 1, f);
+    med_fwrite(buffer2, bi2, 1, f);
     fclose(f);
   } else ERROR;
 }
